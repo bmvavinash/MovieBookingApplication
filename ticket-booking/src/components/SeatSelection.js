@@ -1,49 +1,74 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import axios from 'axios';
+import { Container, Checkbox, FormControlLabel, Button, Typography, Grid } from '@mui/material';
 
 const API_URL = 'http://localhost:5000';
 
-const SeatSelection = ({ username, selectedMovie, onBookingComplete }) => {
+const SeatSelection = () => {
+    const { movie } = useParams();
+    const location = useLocation();
+    const { username } = location.state;
     const [seats, setSeats] = useState([]);
     const [selectedSeats, setSelectedSeats] = useState([]);
+    const navigate = useNavigate();
 
     useEffect(() => {
-        if (selectedMovie) {
-            axios.get(`${API_URL}/movies/seats/${selectedMovie}`, { params: { username } }).then(res => {
+        axios.get(`${API_URL}/movies/seats/${movie}`, { params: { username } })
+            .then(res => {
                 setSeats(res.data.availableSeats);
                 setSelectedSeats(res.data.userBookings);
+            })
+            .catch(error => {
+                console.error("There was an error fetching the seats!", error);
             });
-        }
-    }, [selectedMovie]);
+    }, [movie, username]);
 
     const handleSeatSelect = (seat) => {
         setSelectedSeats(prev => prev.includes(seat) ? prev.filter(s => s !== seat) : [...prev, seat]);
     };
 
     const handleBooking = () => {
-        axios.post(`${API_URL}/book`, { username, movie: selectedMovie, seats: selectedSeats }).then(res => {
-            if (res.data.success) {
-                alert('Booking successful!');
-                onBookingComplete(selectedMovie);
-            }
-        });
+        axios.post(`${API_URL}/book`, { username, movie, seats: selectedSeats })
+            .then(res => {
+                if (res.data.success) {
+                    alert('Booking successful!');
+                    navigate('/movies', { state: { username } });
+                }
+            })
+            .catch(error => {
+                console.error("There was an error making the booking!", error);
+            });
     };
 
     return (
-        <div>
-            {selectedMovie && (
-                <div>
-                    <h3>Select Seats for {selectedMovie}</h3>
-                    {seats.map((seat, index) => seat !== null && (
-                        <div key={index}>
-                            <input type="checkbox" checked={selectedSeats.includes(seat)} onChange={() => handleSeatSelect(seat)} />
-                            Seat {seat + 1}
-                        </div>
-                    ))}
-                    <button onClick={handleBooking}>Confirm Booking</button>
-                </div>
-            )}
-        </div>
+        <Container maxWidth="sm" style={{ marginTop: '50px' }}>
+            <Typography variant="h4" gutterBottom>Select Seats for {movie}</Typography>
+            <Grid container spacing={2}>
+                {seats.map((seat, index) => seat !== null && (
+                    <Grid item xs={6} key={index}>
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={selectedSeats.includes(seat)}
+                                    onChange={() => handleSeatSelect(seat)}
+                                />
+                            }
+                            label={`Seat ${seat + 1}`}
+                        />
+                    </Grid>
+                ))}
+            </Grid>
+            <Button variant="contained" color="primary" onClick={handleBooking} style={{ marginTop: '20px' }}>
+                Confirm Booking
+            </Button>
+            <div style={{ marginTop: '20px' }}>
+                <Typography variant="h6">Your Booked Seats:</Typography>
+                {selectedSeats.map(seat => (
+                    <Typography key={seat}>{`Seat ${seat + 1}`}</Typography>
+                ))}
+            </div>
+        </Container>
     );
 };
 
